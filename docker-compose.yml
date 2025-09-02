@@ -1,0 +1,55 @@
+
+services:
+  app:
+    build: .
+    depends_on:
+      - db
+      - kafka
+    environment:
+      - DB_USER=serviceuser
+      - DB_PASSWORD=123
+      - DB_NAME=order_management
+      - DB_HOST=db
+      - DB_PORT=5432
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC=orders
+      - KAFKA_GROUP=order-service
+      - PORT=3000
+    ports:
+      - "3000:3000"
+
+  db:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: serviceuser
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: order_management
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  kafka:
+    image: bitnami/kafka:3.7.0
+    container_name: kafka
+    ports:
+      - "9092:9092"   # для контейнеров внутри Docker
+      - "29092:29092" #внешний listener
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CREATE_TOPICS=orders:1:1
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+volumes:
+  db_data:
+  kafka_data:
