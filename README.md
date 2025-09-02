@@ -1,4 +1,4 @@
-# Gool Order Service
+# Go Order Service
 
 Сервис для чтения заказов из Kafka, сохранения в PostgreSQL и кэширования в памяти.
 
