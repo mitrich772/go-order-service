@@ -10,9 +10,10 @@ import (
 	"strings"
 
 	"github.com/mitrich772/go-order-service/internal/cache"
-	"github.com/mitrich772/go-order-service/internal/db"
+	"github.com/mitrich772/go-order-service/internal/database"
 )
 
+// Server структура для работы с endpoints
 type Server struct {
 	Store cache.OrderStore
 	Tpl   *template.Template
@@ -24,7 +25,10 @@ func (s *Server) IndexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "template not set", http.StatusInternalServerError)
 		return
 	}
-	s.Tpl.Execute(w, nil)
+	err := s.Tpl.Execute(w, nil)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 // OrderHandler возвращает данные заказа по ID в формате JSON
@@ -39,7 +43,7 @@ func (s *Server) OrderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetOrder ищет заказ в хранилище (кэш + БД)
-func (s *Server) GetOrder(uid string) (*db.Order, error) {
+func (s *Server) GetOrder(uid string) (*database.Order, error) {
 	if uid == "" {
 		return nil, fmt.Errorf("order_uid required")
 	}
@@ -54,7 +58,10 @@ func (s *Server) GetOrder(uid string) (*db.Order, error) {
 // writeJSON сериализует данные в JSON и пишет в ответ
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	err := json.NewEncoder(w).Encode(v)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 // Start запускает HTTP-сервер

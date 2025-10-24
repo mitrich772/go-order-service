@@ -1,0 +1,11 @@
+run:
+  timeout: 2m
+linters:
+  enable:
+    - govet
+    - gocyclo
+    - gosimple
+    - staticcheck
+    - ineffassign
+issues:
+  exclude-use-default: false

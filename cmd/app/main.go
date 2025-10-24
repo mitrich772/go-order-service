@@ -8,7 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/mitrich772/go-order-service/internal/cache"
-	"github.com/mitrich772/go-order-service/internal/db"
+	"github.com/mitrich772/go-order-service/internal/database"
 	"github.com/mitrich772/go-order-service/internal/kafka"
 	"github.com/mitrich772/go-order-service/internal/web"
 )
@@ -16,7 +16,7 @@ import (
 func main() {
 	log.Println("Программа запущена!")
 
-	cfg := db.Config{
+	cfg := database.Config{
 		User:     getenv("DB_USER", "serviceuser"),
 		Password: getenv("DB_PASSWORD", "123"),
 		DBName:   getenv("DB_NAME", "order_management"),
@@ -25,15 +25,19 @@ func main() {
 		Port:     getenv("DB_PORT", "5432"),
 	}
 
-	gormDB := db.Init(cfg)
-	defer db.Close(gormDB)
+	// Получаем соединение с gorm
+	gorm := database.ConnectDB(cfg)
+	defer database.Close(gorm)
+
+	// --- Создаем обертку для работы с gorm ---
+	database := database.NewGormDatabase(gorm)
 
 	// --- Создание OrderStore ---
 	var store cache.OrderStore
 	if getenv("ENABLE_CACHE", "true") == "true" {
-		store = cache.NewDBWithCacheStore(gormDB)
+		store = cache.NewDBWithCacheStore(database, 50)
 	} else {
-		store = cache.NewDBStore(gormDB)
+		store = cache.NewDBStore(database)
 	}
 
 	// --- Web ---

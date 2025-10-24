@@ -1,49 +1,67 @@
 package cache
 
 import (
-	"github.com/mitrich772/go-order-service/internal/db"
+	"log"
 	"sync"
 
-	"gorm.io/gorm"
+	"github.com/mitrich772/go-order-service/internal/database"
 )
 
-// Кэш заказов
-type OrderCache struct {
-	mu    sync.RWMutex
-	store map[string]*db.Order
+// Cache описывает интерфейс кеша
+type Cache interface {
+	Get(uid string) (*database.Order, bool)
+	Set(order *database.Order) (exist bool)
 }
 
-// Создать новый кэш
-func NewOrderCache() *OrderCache {
+// OrderCache реализует интерфейс Cache и хранит кэш заказов с потокобезопасным доступом.
+type OrderCache struct {
+	mu      sync.RWMutex
+	storage *LRU
+}
+
+// NewOrderCache создает новый OrderCache с заданной вместимостью.
+func NewOrderCache(storeCap int) *OrderCache {
 	return &OrderCache{
-		store: make(map[string]*db.Order),
+		storage: NewLru(storeCap),
 	}
 }
 
-// Получить заказ из кэша
-func (c *OrderCache) Get(uid string) (*db.Order, bool) {
+// Get возвращает заказ из кэша по uid.
+func (c *OrderCache) Get(uid string) (*database.Order, bool) {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
+	value, ok := c.storage.Get(uid)
+	c.mu.RUnlock()
 
-	order, ok := c.store[uid]
+	if !ok {
+		return &database.Order{}, ok
+	}
+
+	order, ok := value.(*database.Order)
+	if !ok {
+		return nil, false
+	}
 
 	return order, ok
 }
 
-// Добавить заказ в кэш
-func (c *OrderCache) Set(order *db.Order) {
+// Set добавляет заказ в кэш или обновляет существующий.
+func (c *OrderCache) Set(order *database.Order) (exist bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.store[order.OrderUID] = order
+	res := c.storage.Set(order.OrderUID, order)
+	log.Printf("Кеш %d/%d", c.storage.queue.Len(), c.storage.capacity)
+	return res
 }
 
-// Создать новый кэш c бд
-func Init(gormDB *gorm.DB) *OrderCache {
-	cache := NewOrderCache()
-	orders, err := db.GetAllOrders(gormDB)
+// Init инициализирует OrderCache с данными из базы.
+func Init(db database.Database, storeCap int) *OrderCache {
+	cache := NewOrderCache(storeCap)
+
+	orders, err := db.GetLastNOrders(storeCap)
 	if err != nil {
 		panic(err)
 	}
+
 	for i := range orders {
 		cache.Set(&orders[i])
 	}

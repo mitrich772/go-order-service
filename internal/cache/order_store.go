@@ -1,51 +1,54 @@
 package cache
 
 import (
-	"github.com/mitrich772/go-order-service/internal/db"
-
-	"gorm.io/gorm"
+	"github.com/mitrich772/go-order-service/internal/database"
 )
 
-// OrderStore описывает интерфейс хранилища заказов (БД или БД+кэш)
+// OrderStore описывает интерфейс хранилища заказов (БД или БД+кэш).
 type OrderStore interface {
-	Save(order *db.Order) error
-	Get(uid string) (*db.Order, error)
+	Save(order *database.Order) error
+	Get(uid string) (*database.Order, error)
 }
 
-// DBStore — простое хранилище заказов только в базе данных
+// DBStore — простое хранилище заказов только в базе данных.
 type DBStore struct {
-	db *gorm.DB
+	db database.Database
 }
 
-func NewDBStore(db *gorm.DB) *DBStore {
+// NewDBStore создает новый DBStore с подключением к базе данных.
+func NewDBStore(db database.Database) *DBStore {
 	return &DBStore{
 		db: db,
 	}
 }
 
-func (s *DBStore) Save(order *db.Order) error {
-	return db.SaveOrder(s.db, order)
+// Save сохраняет заказ в базе данных.
+func (s *DBStore) Save(order *database.Order) error {
+	return s.db.SaveOrder(order)
 }
 
-func (s *DBStore) Get(uid string) (*db.Order, error) {
-	return db.GetOrder(s.db, uid)
+// Get возвращает заказ из базы данных по uid.
+func (s *DBStore) Get(uid string) (*database.Order, error) {
+	return s.db.GetOrder(uid)
 }
 
-// DBWithCacheStore — хранилище заказов с кэшем в памяти и базой данных
+// DBWithCacheStore — хранилище заказов с кэшем в памяти и базой данных.
 type DBWithCacheStore struct {
-	db    *gorm.DB
-	cache *OrderCache
+	db    database.Database
+	cache Cache
 }
 
-func NewDBWithCacheStore(db *gorm.DB) *DBWithCacheStore {
+// NewDBWithCacheStore создает новый DBWithCacheStore с указанной емкостью кэша.
+func NewDBWithCacheStore(db database.Database, storeCap int) *DBWithCacheStore {
 	return &DBWithCacheStore{
 		db:    db,
-		cache: Init(db),
+		cache: Init(db, storeCap),
 	}
 }
 
-func (s *DBWithCacheStore) Save(order *db.Order) error {
-	if err := db.SaveOrder(s.db, order); err != nil {
+// Save сохраняет заказ в базе данных и обновляет кэш.
+func (s *DBWithCacheStore) Save(order *database.Order) error {
+	if err := s.db.SaveOrder(order); err != nil {
 		return err
 	}
 	if s.cache != nil {
@@ -54,14 +57,15 @@ func (s *DBWithCacheStore) Save(order *db.Order) error {
 	return nil
 }
 
-func (s *DBWithCacheStore) Get(uid string) (*db.Order, error) {
-	if s.cache != nil { // сначала пробуем кэш, не получилось? тогда пойдем в базу
+// Get возвращает заказ из кэша, если он есть, иначе из базы данных, и обновляет кэш.
+func (s *DBWithCacheStore) Get(uid string) (*database.Order, error) {
+	if s.cache != nil { // сначала пробуем кэш
 		if order, ok := s.cache.Get(uid); ok {
 			return order, nil
 		}
 	}
 
-	order, err := db.GetOrder(s.db, uid)
+	order, err := s.db.GetOrder(uid)
 	if err != nil {
 		return nil, err
 	}

@@ -2,14 +2,16 @@ package kafka
 
 import (
 	"context"
-	"github.com/mitrich772/go-order-service/internal/cache"
-	"github.com/mitrich772/go-order-service/internal/db"
 	"log"
 	"time"
+
+	"github.com/mitrich772/go-order-service/internal/cache"
+	"github.com/mitrich772/go-order-service/internal/database"
 
 	"github.com/segmentio/kafka-go"
 )
 
+// Consumer представляет Kafka consumer, который читает сообщения и сохраняет их в OrderStore.
 type Consumer struct {
 	store   cache.OrderStore
 	reader  *kafka.Reader
@@ -18,6 +20,7 @@ type Consumer struct {
 	GroupID string
 }
 
+// NewConsumer создает нового Kafka consumer с заданными параметрами.
 func NewConsumer(cacheStore cache.OrderStore, brokers []string, topic, groupID string) *Consumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:        brokers,
@@ -36,7 +39,7 @@ func NewConsumer(cacheStore cache.OrderStore, brokers []string, topic, groupID s
 	}
 }
 
-// Consume читает сообщения из Kafka и вызывает handler для каждого сообщения
+// Consume читает сообщения из Kafka и вызывает handler для каждого сообщения.
 func (c *Consumer) Consume(ctx context.Context, handler func(key, value []byte)) error {
 	for {
 		m, err := c.reader.ReadMessage(ctx)
@@ -48,22 +51,22 @@ func (c *Consumer) Consume(ctx context.Context, handler func(key, value []byte))
 	}
 }
 
-// Close закрывает reader
+// Close закрывает Kafka reader.
 func (c *Consumer) Close() error {
 	return c.reader.Close()
 }
 
-// StartConsumer запускает consumer в отдельной горутине
+// Start запускает Kafka consumer в отдельной горутине.
 func (c *Consumer) Start(ctx context.Context) {
 	go func() {
 		err := c.Consume(ctx, func(key, value []byte) {
-			order, err := db.OrderFromJSON(value)
+			order, err := database.OrderFromJSON(value)
 			if err != nil {
 				log.Printf("Ошибка парсинга JSON: %v", err)
 				return
 			}
 
-			if err := db.ValidateOrder(order); err != nil {
+			if err := database.ValidateOrder(order); err != nil {
 				log.Printf("Ошибка валидации заказа %s: %v", order.OrderUID, err)
 				return
 			}

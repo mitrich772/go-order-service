@@ -1,17 +1,18 @@
 package test
 
 import (
-	"github.com/mitrich772/go-order-service/internal/cache"
-	"github.com/mitrich772/go-order-service/internal/db"
-	"github.com/mitrich772/go-order-service/internal/web"
 	"html/template"
 	"testing"
+
+	"github.com/mitrich772/go-order-service/internal/cache"
+	"github.com/mitrich772/go-order-service/internal/database"
+	"github.com/mitrich772/go-order-service/internal/web"
 )
 
 // BenchmarkGetOrder сравнивает время получения заказа
 // с включённым кешем и без него.
 func BenchmarkGetOrder(b *testing.B) {
-	cfg := db.Config{
+	cfg := database.Config{
 		User:     "serviceuser",
 		Password: "123",
 		DBName:   "order_management",
@@ -21,8 +22,9 @@ func BenchmarkGetOrder(b *testing.B) {
 	}
 
 	// Инициализация БД
-	gormDB := db.Init(cfg)
-	defer db.Close(gormDB)
+	gorm := database.ConnectDB(cfg)
+	defer database.Close(gorm)
+	database := database.NewGormDatabase(gorm)
 
 	// Инициализация шаблона
 	tpl, err := template.ParseFiles("C:/Users/dima/Desktop/gool/templates/index.html")
@@ -33,14 +35,14 @@ func BenchmarkGetOrder(b *testing.B) {
 	uid := "b563feb7b2b84b6test"
 
 	// --- Сервер с кешем ---
-	storeWithCache := cache.NewDBWithCacheStore(gormDB)
+	storeWithCache := cache.NewDBWithCacheStore(database, 25)
 	serverWithCache := &web.Server{
 		Store: storeWithCache,
 		Tpl:   tpl,
 	}
 
 	// --- Сервер без кеша ---
-	storeWithoutCache := cache.NewDBStore(gormDB)
+	storeWithoutCache := cache.NewDBStore(database)
 	serverWithoutCache := &web.Server{
 		Store: storeWithoutCache,
 		Tpl:   tpl,
