@@ -6,7 +6,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/mitrich772/go-order-service/internal/cache"
@@ -18,7 +17,6 @@ type Server struct {
 	Store cache.OrderStore
 	Tpl   *template.Template
 }
-
 
 // IndexHandler рендерит главную страницу (форма для ввода ID заказа)
 func (s *Server) IndexHandler(w http.ResponseWriter, r *http.Request) {
@@ -44,17 +42,17 @@ func (s *Server) OrderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetOrder ищет заказ в хранилище (кэш + БД)
-func (s *Server) GetOrder(uid string) (*database.Order, error) { 
-	if uid == "" { 
-		return nil, fmt.Errorf("order_uid required") 
-	} 
-	order, err := s.Store.Get(uid) 
-	if err != nil { 
-		return nil, err 
+func (s *Server) GetOrder(uid string) (*database.Order, error) {
+	if uid == "" {
+		return nil, fmt.Errorf("order_uid required")
+	}
+	order, err := s.Store.Get(uid)
+	if err != nil {
+		return nil, err
 	}
 
-	return order, nil 
-	}
+	return order, nil
+}
 
 // writeJSON сериализует данные в JSON и пишет в ответ
 func writeJSON(w http.ResponseWriter, v interface{}) {
@@ -66,7 +64,7 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 }
 
 // Start запускает HTTP-сервер
-func Start(cacheStore cache.OrderStore, tpl *template.Template) {
+func Start(cacheStore cache.OrderStore, tpl *template.Template, port string) {
 	mux := http.NewServeMux()
 	srv := &Server{
 		Store: cacheStore,
@@ -78,11 +76,6 @@ func Start(cacheStore cache.OrderStore, tpl *template.Template) {
 
 	fs := http.FileServer(http.Dir("static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fs))
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3000"
-	}
 
 	go func() {
 		log.Println("Web сервер запущен на порту", port)

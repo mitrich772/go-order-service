@@ -42,7 +42,9 @@ func main() {
 
 	// --- Web ---
 	tpl := template.Must(template.ParseFiles("templates/index.html"))
-	web.Start(store, tpl) // передаем интерфейс OrderStore
+	webPort := getenv("PORT", "3000")
+
+	web.Start(store, tpl, webPort)
 
 	// --- Kafka ---
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,6 +54,7 @@ func main() {
 		[]string{getenv("KAFKA_BROKERS", "localhost:9092")},
 		getenv("KAFKA_TOPIC", "orders"),
 		getenv("KAFKA_GROUP", "order-service"),
+		getenv("KAFKA_DLQ_TOPIC", "orders-dlq"),
 	)
 	consumer.Start(ctx)
 	// --- Graceful shutdown ---

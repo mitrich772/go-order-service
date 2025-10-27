@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,29 +14,38 @@ import (
 
 // Consumer представляет Kafka consumer, который читает сообщения и сохраняет их в OrderStore.
 type Consumer struct {
-	Store   cache.OrderStore
-	reader  *kafka.Reader
-	Brokers []string
-	Topic   string
-	GroupID string
+	Store     cache.OrderStore
+	reader    *kafka.Reader
+	dlqWriter *kafka.Writer
+	Brokers   []string
+	Topic     string
+	GroupID   string
 }
 
 // NewConsumer создает нового Kafka consumer с заданными параметрами.
-func NewConsumer(cacheStore cache.OrderStore, brokers []string, topic, groupID string) *Consumer {
+func NewConsumer(cacheStore cache.OrderStore, brokers []string, topic, groupID, dlqTopic string) *Consumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:        brokers,
 		GroupID:        groupID,
 		Topic:          topic,
-		MinBytes:       10e3, // 10KB
-		MaxBytes:       10e6, // 10MB
+		MinBytes:       10e3,
+		MaxBytes:       10e6,
 		CommitInterval: time.Second,
 	})
+
+	w := &kafka.Writer{
+		Addr:     kafka.TCP(brokers...),
+		Topic:    dlqTopic,
+		Balancer: &kafka.LeastBytes{},
+	}
+
 	return &Consumer{
-		Store:   cacheStore,
-		reader:  r,
-		Brokers: brokers,
-		Topic:   topic,
-		GroupID: groupID,
+		Store:     cacheStore,
+		reader:    r,
+		dlqWriter: w,
+		Brokers:   brokers,
+		Topic:     topic,
+		GroupID:   groupID,
 	}
 }
 
@@ -44,9 +54,12 @@ func (c *Consumer) Consume(ctx context.Context, handler func(key, value []byte))
 	for {
 		m, err := c.reader.ReadMessage(ctx)
 		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			return err
 		}
-		log.Printf("consumed message: key=%s value=%s", string(m.Key), string(m.Value))
+		log.Printf("consumed message: key=%s value=%s\n\n", string(m.Key), string(m.Value))
 		handler(m.Key, m.Value)
 	}
 }
@@ -56,18 +69,43 @@ func (c *Consumer) Close() error {
 	return c.reader.Close()
 }
 
+func (c *Consumer) sendToDLQ(value []byte, err error, retryable bool) error {
+	headers := []kafka.Header{
+		{Key: "error.class", Value: []byte(fmt.Sprintf("%T", err))},
+		{Key: "error.message", Value: []byte(err.Error())},
+		{Key: "retryable", Value: []byte(fmt.Sprintf("%v", retryable))},
+		{Key: "ts.failed", Value: []byte(fmt.Sprintf("%d", time.Now().UnixMilli()))},
+	}
+
+	errWrite := c.dlqWriter.WriteMessages(context.Background(), kafka.Message{
+		Value:   value,
+		Headers: headers,
+	})
+
+	if errWrite != nil {
+		return fmt.Errorf("ошибка отправки в DLQ: %w", errWrite)
+	}
+
+	log.Printf("Сообщение успешно отправлено в DLQ")
+	return nil
+}
+
 // HandleMessage обрабатывает одно сообщение из Kafka
 func (c *Consumer) HandleMessage(value []byte) error {
 	order, err := database.OrderFromJSON(value)
-	if err != nil {
-		return err
+	if err != nil { // Не фигачится в order улетает
+		return c.sendToDLQ(value, err, false)
 	}
 
-	if err := database.ValidateOrder(order); err != nil {
-		return err
+	if err := database.ValidateOrder(order); err != nil { // Не валидируется улетает
+		return c.sendToDLQ(value, err, false)
 	}
 
-	return c.Store.Save(order)
+	if err := c.Store.Save(order); err != nil { // Если retry в бд не пробьется то со таймаутом в dlq
+		return c.sendToDLQ(value, err, true)
+	}
+
+	return nil
 }
 
 // Start запускает Kafka consumer в отдельной горутине
