@@ -19,6 +19,7 @@ type Server struct {
 	Tpl   *template.Template
 }
 
+
 // IndexHandler рендерит главную страницу (форма для ввода ID заказа)
 func (s *Server) IndexHandler(w http.ResponseWriter, r *http.Request) {
 	if s.Tpl == nil {
@@ -43,17 +44,17 @@ func (s *Server) OrderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetOrder ищет заказ в хранилище (кэш + БД)
-func (s *Server) GetOrder(uid string) (*database.Order, error) {
-	if uid == "" {
-		return nil, fmt.Errorf("order_uid required")
+func (s *Server) GetOrder(uid string) (*database.Order, error) { 
+	if uid == "" { 
+		return nil, fmt.Errorf("order_uid required") 
+	} 
+	order, err := s.Store.Get(uid) 
+	if err != nil { 
+		return nil, err 
 	}
 
-	order, err := s.Store.Get(uid)
-	if err != nil {
-		return nil, err
+	return order, nil 
 	}
-	return order, nil
-}
 
 // writeJSON сериализует данные в JSON и пишет в ответ
 func writeJSON(w http.ResponseWriter, v interface{}) {
@@ -84,7 +85,7 @@ func Start(cacheStore cache.OrderStore, tpl *template.Template) {
 	}
 
 	go func() {
-		log.Println("🌐 Web сервер запущен на порту", port)
+		log.Println("Web сервер запущен на порту", port)
 		if err := http.ListenAndServe(":"+port, mux); err != nil {
 			log.Fatal(err)
 		}

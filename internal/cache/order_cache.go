@@ -1,17 +1,10 @@
 package cache
 
 import (
-	"log"
 	"sync"
 
 	"github.com/mitrich772/go-order-service/internal/database"
 )
-
-// Cache описывает интерфейс кеша
-type Cache interface {
-	Get(uid string) (*database.Order, bool)
-	Set(order *database.Order) (exist bool)
-}
 
 // OrderCache реализует интерфейс Cache и хранит кэш заказов с потокобезопасным доступом.
 type OrderCache struct {
@@ -33,7 +26,7 @@ func (c *OrderCache) Get(uid string) (*database.Order, bool) {
 	c.mu.RUnlock()
 
 	if !ok {
-		return &database.Order{}, ok
+		return nil, ok
 	}
 
 	order, ok := value.(*database.Order)
@@ -49,12 +42,11 @@ func (c *OrderCache) Set(order *database.Order) (exist bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	res := c.storage.Set(order.OrderUID, order)
-	log.Printf("Кеш %d/%d", c.storage.queue.Len(), c.storage.capacity)
 	return res
 }
 
-// Init инициализирует OrderCache с данными из базы.
-func Init(db database.Database, storeCap int) *OrderCache {
+// NewOrderCaheFromDB инициализирует OrderCache с данными из базы.
+func NewOrderCaheFromDB(db database.Database, storeCap int) *OrderCache {
 	cache := NewOrderCache(storeCap)
 
 	orders, err := db.GetLastNOrders(storeCap)

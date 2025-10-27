@@ -8,7 +8,6 @@ require (
 )
 
 require (
-	github.com/fzipp/gocyclo v0.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -32,6 +31,7 @@ require (
 	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/golang-migrate/migrate/v4 v4.19.0
+	github.com/golang/mock v1.6.0
 	github.com/klauspost/compress v1.15.11 // indirect
 	github.com/pierrec/lz4/v4 v4.1.16 // indirect
 	gorm.io/gorm v1.30.2

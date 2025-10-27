@@ -13,7 +13,7 @@ import (
 
 // Consumer представляет Kafka consumer, который читает сообщения и сохраняет их в OrderStore.
 type Consumer struct {
-	store   cache.OrderStore
+	Store   cache.OrderStore
 	reader  *kafka.Reader
 	Brokers []string
 	Topic   string
@@ -31,7 +31,7 @@ func NewConsumer(cacheStore cache.OrderStore, brokers []string, topic, groupID s
 		CommitInterval: time.Second,
 	})
 	return &Consumer{
-		store:   cacheStore,
+		Store:   cacheStore,
 		reader:  r,
 		Brokers: brokers,
 		Topic:   topic,
@@ -56,26 +56,28 @@ func (c *Consumer) Close() error {
 	return c.reader.Close()
 }
 
-// Start запускает Kafka consumer в отдельной горутине.
+// HandleMessage обрабатывает одно сообщение из Kafka
+func (c *Consumer) HandleMessage(value []byte) error {
+	order, err := database.OrderFromJSON(value)
+	if err != nil {
+		return err
+	}
+
+	if err := database.ValidateOrder(order); err != nil {
+		return err
+	}
+
+	return c.Store.Save(order)
+}
+
+// Start запускает Kafka consumer в отдельной горутине
 func (c *Consumer) Start(ctx context.Context) {
 	go func() {
-		err := c.Consume(ctx, func(key, value []byte) {
-			order, err := database.OrderFromJSON(value)
-			if err != nil {
-				log.Printf("Ошибка парсинга JSON: %v", err)
-				return
-			}
-
-			if err := database.ValidateOrder(order); err != nil {
-				log.Printf("Ошибка валидации заказа %s: %v", order.OrderUID, err)
-				return
-			}
-
-			if err := c.store.Save(order); err != nil {
-				log.Printf("Ошибка сохранения заказа %s: %v", order.OrderUID, err)
+		err := c.Consume(ctx, func(_, value []byte) {
+			if err := c.HandleMessage(value); err != nil {
+				log.Printf("Ошибка обработки сообщения: %v", err)
 			}
 		})
-
 		if err != nil {
 			log.Printf("Consumer error: %v", err)
 		}
