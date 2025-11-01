@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 func main() {
 	kafkaPort := flag.String("port", "9092", "Порт Kafka")
 	flag.Parse()
-
+	fmt.Printf("Порт для Kafka: %s\n", *kafkaPort)
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP("localhost:" + *kafkaPort),
 		Topic:    "orders",
@@ -23,6 +24,7 @@ func main() {
 	defer writer.Close()
 
 	order := generate.MakeOrder()
+	//order.OrderUID = ""
 
 	jsonData, err := json.Marshal(order)
 	if err != nil {
@@ -39,6 +41,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Ошибка при отправке сообщения:", err)
 	}
-
+	fmt.Printf("Id: %s\n", order.OrderUID)
 	log.Println("Случайный заказ успешно отправлен в Kafka")
 }

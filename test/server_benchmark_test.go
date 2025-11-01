@@ -24,7 +24,7 @@ func BenchmarkGetOrder(b *testing.B) {
 	// Инициализация БД
 	gorm := database.ConnectDB(cfg)
 	defer database.Close(gorm)
-	database := database.NewGormDatabase(gorm)
+	database := database.NewGormDatabase(gorm, 1, 0)
 
 	// Инициализация шаблона
 	tpl, err := template.ParseFiles("C:/Users/dima/Desktop/gool/templates/index.html")

@@ -9,17 +9,11 @@ import (
 
 // Database описывает набор операций для работы с заказами.
 type Database interface {
-	// GetLastNOrders возвращает последние N заказов с подгруженными зависимостями
 	GetLastNOrders(n int) ([]Order, error)
-	// GetAllOrders возвращает все заказы с подгруженными зависимостями
 	GetAllOrders() ([]Order, error)
-	// GetOrder возвращает заказ по UID с подгруженными зависимостями
 	GetOrder(uid string) (*Order, error)
-	// SaveOrder сохраняет заказ и связанные данные в транзакции
 	SaveOrder(order *Order) error
 }
-
-// ------------------- Структуры -------------------
 
 // Config содержит настройки подключения к базе данных.
 type Config struct {

@@ -41,7 +41,7 @@ func (s *Server) OrderHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, order)
 }
 
-// GetOrder ищет заказ в хранилище (кэш + БД)
+// GetOrder ищет заказ в Store
 func (s *Server) GetOrder(uid string) (*database.Order, error) {
 	if uid == "" {
 		return nil, fmt.Errorf("order_uid required")

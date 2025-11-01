@@ -5,10 +5,12 @@ import (
 	"log"
 	"time"
 )
-// TemporaryErrorChecker — проверяет, является ли ошибка временной
+
+// TemporaryErrorChecker проверяет, является ли ошибка временной
 type TemporaryErrorChecker func(error) bool
 
-// Retry выполняет функцию fn несколько раз с задержкой, если ошибка временная
+// Retry выполняет функцию fn несколько раз с задержкой
+// check ожидает функцию для отброса невременных ошибок
 func Retry[T any](maxRetries int, delay time.Duration, check TemporaryErrorChecker, fn func() (T, error)) (T, error) {
 	var lastErr error
 	var result T
@@ -19,12 +21,11 @@ func Retry[T any](maxRetries int, delay time.Duration, check TemporaryErrorCheck
 			return result, nil
 		}
 
-		// Если ошибка не временная — возвращаем сразу
 		if !check(lastErr) {
 			return result, lastErr
 		}
 
-		log.Printf("⚠️ Retry попытка %d/%d не удалась: %v", i+1, maxRetries, lastErr)
+		log.Printf("Retry попытка %d/%d не удалась: %v", i+1, maxRetries, lastErr)
 		time.Sleep(delay)
 	}
 

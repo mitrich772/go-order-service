@@ -58,7 +58,7 @@ func TestDBWithCacheStore_Save_DBError(t *testing.T) {
 	}
 }
 
-// 3 Get возвращает элемент из кэша, DB не вызывается
+// Get возвращает элемент из кэша, DB не вызывается
 func TestDBWithCacheStore_Get_FromCache(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -86,7 +86,7 @@ func TestDBWithCacheStore_Get_FromCache(t *testing.T) {
 	}
 }
 
-// 4 Get не находит заказ, DB вызывается и находит заказ
+// Get не находит заказ, DB вызывается и находит заказ
 func TestDBWithCacheStore_Get_FromDB(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -116,7 +116,7 @@ func TestDBWithCacheStore_Get_FromDB(t *testing.T) {
 	}
 }
 
-// 5 Get элемента нет ни в кэше, ни в DB → ошибка возвращается
+// Get элемента нет ни в кэше, ни в DB → ошибка возвращается
 func TestDBWithCacheStore_Get_NotFound(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -140,7 +140,7 @@ func TestDBWithCacheStore_Get_NotFound(t *testing.T) {
 	}
 }
 
-// 6 Save nil-заказ не паникует и возвращает ошибку
+// Save nil-заказ не паникует и возвращает ошибку
 func TestDBWithCacheStore_Save_NilOrder(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

@@ -2,7 +2,7 @@ package cache
 
 import "github.com/mitrich772/go-order-service/internal/database"
 
-// DBStore — простое хранилище заказов только в базе данных. Реализует OrderStore.
+// DBStore — хранилище заказов только в базе данных. Реализует OrderStore.
 type DBStore struct {
 	db database.Database
 }

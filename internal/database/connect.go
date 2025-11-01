@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ConnectDB открывает соединение с базой
+// ConnectDB подключается к базе данных PostgreSQL через GORM.
 func ConnectDB(cfg Config) *gorm.DB {
 	dsn := fmt.Sprintf(
 		"user=%s password=%s dbname=%s sslmode=%s host=%s port=%s",

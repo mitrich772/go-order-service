@@ -12,7 +12,7 @@ type OrderCache struct {
 	storage *LRU
 }
 
-// NewOrderCache создает новый OrderCache с заданной вместимостью.
+// NewOrderCache создает новый OrderCache с заданной вместимостью storeCap.
 func NewOrderCache(storeCap int) *OrderCache {
 	return &OrderCache{
 		storage: NewLru(storeCap),

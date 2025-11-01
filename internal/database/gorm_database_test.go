@@ -32,7 +32,7 @@ func TestSaveOrder_Success(t *testing.T) {
 	gormDB, mock, cleanup := setupMockDB(t) // Gorm с мок бд
 	defer cleanup()
 
-	repo := NewGormDatabase(gormDB)
+	repo := NewGormDatabase(gormDB, 1, 0)
 	// ожидаем цепочку: начало транзакции -> оперцию к бд -> успешный результат -> коммит
 	mock.ExpectBegin()
 	mock.ExpectExec(`INSERT INTO "orders"`).
@@ -55,7 +55,7 @@ func TestSaveOrder_RollbackOnError(t *testing.T) {
 	gormDB, mock, cleanup := setupMockDB(t)
 	defer cleanup()
 
-	repo := NewGormDatabase(gormDB)
+	repo := NewGormDatabase(gormDB, 1, 0)
 	// ожидаем ошибку и откат
 	mock.ExpectBegin()
 	mock.ExpectExec(`INSERT INTO "orders"`).
@@ -77,7 +77,7 @@ func TestGetOrder_NotFound_NoRetry(t *testing.T) {
 	gormDB, mock, cleanup := setupMockDB(t)
 	defer cleanup()
 
-	repo := NewGormDatabase(gormDB)
+	repo := NewGormDatabase(gormDB, 1, 0)
 	// запись не найдена
 	mock.ExpectQuery(`SELECT (.+)FROM "orders"`).
 		WillReturnError(gorm.ErrRecordNotFound)

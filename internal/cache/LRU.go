@@ -26,7 +26,8 @@ func NewLru(capacity int) *LRU {
 	}
 }
 
-// Set добавляет новый ключ со значением в кеш или обновляет существующий.
+// Set добавляет ключ со значением в кеш или обновляет существующий.
+// Если ключ уже есть, его элемент перемещается в начало очереди
 // Возвращает true, если ключ уже существовал.
 func (c *LRU) Set(key string, value interface{}) (exist bool) {
 	if element, exists := c.items[key]; exists {
@@ -50,7 +51,7 @@ func (c *LRU) Set(key string, value interface{}) (exist bool) {
 	return false
 }
 
-// purge удаляет наименее недавно использованный элемент из кеша.
+// purge удаляет самый старый элемент
 func (c *LRU) purge() {
 	if element := c.queue.Back(); element != nil {
 		item := c.queue.Remove(element).(*item)

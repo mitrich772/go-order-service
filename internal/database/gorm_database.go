@@ -11,7 +11,6 @@ import (
 // Функция проверки временных ошибок
 func isTemporaryGormError(err error) bool {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Это логическая ошибка — Retry не поможет
 		return false
 	}
 	return true
@@ -19,17 +18,26 @@ func isTemporaryGormError(err error) bool {
 
 // GormDatabase реализует интерфейс Database через gorm
 type GormDatabase struct {
-	db *gorm.DB
+	db       *gorm.DB
+	attempts int
+	delay    time.Duration
 }
 
 // NewGormDatabase создает новый GormDatabase с указанным подключением gorm
-func NewGormDatabase(db *gorm.DB) *GormDatabase {
-	return &GormDatabase{db: db}
+// attempts - количество попыток для Retry
+// delay - время между попытками Retry
+func NewGormDatabase(db *gorm.DB, attempts int, delay time.Duration) *GormDatabase {
+	return &GormDatabase{
+		db:       db,
+		attempts: attempts,
+		delay:    delay,
+	}
 }
 
 // GetLastNOrders возвращает последние N заказов с подгруженными зависимостями с Retry
+// Выполняется с Retry для повторных попыток при временных ошибках БД.
 func (r *GormDatabase) GetLastNOrders(n int) ([]Order, error) {
-	return retry.Retry(3, 500*time.Millisecond, isTemporaryGormError, func() ([]Order, error) {
+	return retry.Retry(r.attempts, r.delay, isTemporaryGormError, func() ([]Order, error) {
 		var orders []Order
 		err := r.db.Preload("Delivery").
 			Preload("Payment").
@@ -41,8 +49,9 @@ func (r *GormDatabase) GetLastNOrders(n int) ([]Order, error) {
 }
 
 // GetAllOrders возвращает все заказы с подгруженными зависимостями с Retry
+// Выполняется с Retry для повторных попыток при временных ошибках БД.
 func (r *GormDatabase) GetAllOrders() ([]Order, error) {
-	return retry.Retry(3, 500*time.Millisecond, isTemporaryGormError, func() ([]Order, error) {
+	return retry.Retry(r.attempts, r.delay, isTemporaryGormError, func() ([]Order, error) {
 		var orders []Order
 		err := r.db.Preload("Delivery").
 			Preload("Payment").
@@ -53,8 +62,9 @@ func (r *GormDatabase) GetAllOrders() ([]Order, error) {
 }
 
 // GetOrder возвращает заказ по UID с подгруженными зависимостями с Retry
+// Выполняется с Retry для повторных попыток при временных ошибках БД.
 func (r *GormDatabase) GetOrder(uid string) (*Order, error) {
-	return retry.Retry(3, 500*time.Millisecond, isTemporaryGormError, func() (*Order, error) {
+	return retry.Retry(r.attempts, r.delay, isTemporaryGormError, func() (*Order, error) {
 		var order Order
 		err := r.db.Preload("Delivery").
 			Preload("Payment").
@@ -69,8 +79,9 @@ func (r *GormDatabase) GetOrder(uid string) (*Order, error) {
 }
 
 // SaveOrder сохраняет заказ и связанные данные в транзакции
+// Выполняется с Retry для повторных попыток при временных ошибках БД.
 func (r *GormDatabase) SaveOrder(order *Order) error {
-	_, err := retry.Retry(3, 500*time.Millisecond, isTemporaryGormError, func() (any, error) {
+	_, err := retry.Retry(r.attempts, r.delay, isTemporaryGormError, func() (any, error) {
 		return nil, r.db.Transaction(func(tx *gorm.DB) error {
 			return tx.Create(order).Error
 		})
